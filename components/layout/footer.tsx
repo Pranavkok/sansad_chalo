@@ -18,7 +18,7 @@ export function Footer() {
             <Link href="/privacy" className="text-muted-foreground transition-colors hover:text-acid">
               Privacy
             </Link>
-            <Link href="/faq" className="text-muted-foreground transition-colors hover:text-acid">
+            <Link href="/about#faq" className="text-muted-foreground transition-colors hover:text-acid">
               FAQ
             </Link>
           </div>

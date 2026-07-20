@@ -4,6 +4,11 @@ import { becomeSupporter } from "@/actions/supporter";
 import { prisma } from "@/lib/prisma";
 import { ProfileCard } from "@/components/dashboard/profile-card";
 import { ShareButtons } from "@/components/dashboard/share-buttons";
+import { CardReveal } from "@/components/dashboard/card-reveal";
+
+export const metadata = {
+  title: "Your Card — Sansad Chalo · 20 July",
+};
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -29,28 +34,58 @@ export default async function DashboardPage() {
     return redirect("/");
   }
 
+  const formattedNumber = String(user.supporterNumber).padStart(6, "0");
+  const firstName = (user.name ?? "comrade").split(" ")[0];
+
   return (
-    <div className="container mx-auto px-4 py-12 max-w-4xl min-h-[calc(100vh-8rem)]">
-      <h1 className="text-4xl font-bold mb-8">Dashboard</h1>
-      
-      <ProfileCard user={user} />
-      
-      <div className="mt-12">
-        <h2 className="text-2xl font-semibold mb-4">Spread the Word</h2>
-        <p className="text-muted-foreground mb-6">
-          Share your card to invite others and watch the movement grow.
+    <div className="container mx-auto min-h-[calc(100vh-8rem)] max-w-5xl px-4 py-12 md:py-16">
+      {/* Header */}
+      <div className="relative">
+        <div
+          aria-hidden
+          className="halftone absolute inset-x-0 -top-12 -z-10 h-72 [mask-image:radial-gradient(ellipse_60%_100%_at_50%_0%,black,transparent)]"
+        />
+        <p className="font-mono text-xs tracking-widest text-alarm uppercase md:text-sm">
+          Welcome to the march, {firstName}
         </p>
-        {/* We can include a preview of the card here as well */}
-        <div className="aspect-[1200/630] max-w-2xl mx-auto rounded-xl overflow-hidden border shadow-lg bg-muted relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img 
-            src={`/api/card/${user.id}?t=${Date.now()}`} 
-            alt="Your Supporter Card Preview" 
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <ShareButtons user={user} />
+        <h1 className="font-display mt-3 text-5xl leading-[0.9] uppercase md:text-7xl">
+          You are voice
+          <br />
+          <span className="text-stroke-acid">#{formattedNumber}</span>
+        </h1>
+        <p className="mt-4 max-w-xl text-sm text-muted-foreground md:text-base">
+          This number is permanently yours — nobody else will ever hold it.
+          Below is your card. It only counts if people see it.
+        </p>
       </div>
+
+      {/* The card itself */}
+      <section className="mt-12 md:mt-16">
+        <CardReveal userId={user.id} cacheKey={String(user.updatedAt.getTime())} />
+      </section>
+
+      {/* Share rail */}
+      <section className="mt-12 md:mt-16">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <h2 className="font-display text-3xl uppercase md:text-5xl">
+            Now <span className="text-acid">flood the feed</span>
+          </h2>
+          <span className="hidden font-mono text-xs tracking-widest text-muted-foreground uppercase md:block">
+            Step 2 of 2
+          </span>
+        </div>
+        <p className="mb-8 max-w-2xl text-sm text-muted-foreground md:text-base">
+          Every share puts your number in front of people who haven&apos;t
+          claimed theirs. Three shares from every supporter and the feed
+          belongs to us on march day.
+        </p>
+        <ShareButtons user={user} />
+      </section>
+
+      {/* Stats */}
+      <section className="mt-12 md:mt-16">
+        <ProfileCard user={user} />
+      </section>
     </div>
   );
 }

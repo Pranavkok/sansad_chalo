@@ -1,13 +1,47 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { prisma } from "@/lib/prisma";
 import { NextRequest } from "next/server";
+
+/*
+ * The shareable protest card. This is the single most viral surface of the
+ * site — it must match the poster language of the homepage exactly:
+ * ink black + acid yellow + alarm red, Anton display type, halftone dots,
+ * hard borders, rotated "verified" stamp.
+ *
+ * Palette = globals.css oklch tokens converted to sRGB hex (Satori needs hex):
+ *   ink #080706 · card #110f0d · fg #f6f5ee · muted #9b9891
+ *   acid #ecf423 · alarm #ea2221
+ */
+
+const INK = "#080706";
+const FG = "#f6f5ee";
+const MUTED = "#9b9891";
+const ACID = "#ecf423";
+const ALARM = "#ea2221";
+
+// Load fonts once per server process, not per request.
+let fontsPromise: Promise<{ anton: Buffer; mono: Buffer; monoBold: Buffer }> | null = null;
+function loadFonts() {
+  fontsPromise ??= (async () => {
+    const dir = join(process.cwd(), "assets", "fonts");
+    const [anton, mono, monoBold] = await Promise.all([
+      readFile(join(dir, "Anton-Regular.ttf")),
+      readFile(join(dir, "JetBrainsMono-Medium.ttf")),
+      readFile(join(dir, "JetBrainsMono-Bold.ttf")),
+    ]);
+    return { anton, mono, monoBold };
+  })();
+  return fontsPromise;
+}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   const user = await prisma.user.findUnique({
     where: { id },
   });
@@ -16,18 +50,19 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const formattedNumber = String(user.supporterNumber).padStart(6, '0');
-  const joinedDate = new Date(user.createdAt).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const { anton, mono, monoBold } = await loadFonts();
 
-  // Base URL for QR code, assuming standard https:// or dev url from request
+  const formattedNumber = String(user.supporterNumber).padStart(6, "0");
+  const firstName = (user.name || "A Supporter").trim();
+  const initial = firstName.charAt(0).toUpperCase() || "✊";
+
   const url = new URL(req.url);
   const baseUrl = `${url.protocol}//${url.host}`;
   const profileUrl = `${baseUrl}/user/${user.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(profileUrl)}&bgcolor=171717&color=ffffff&margin=0`;
+  // Acid-on-ink QR so even the code looks like part of the poster.
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    profileUrl
+  )}&bgcolor=ecf423&color=080706&margin=1`;
 
   return new ImageResponse(
     (
@@ -37,84 +72,281 @@ export async function GET(
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: "#0a0a0a", // Tailwind background
-          color: "#ffffff",
-          fontFamily: "sans-serif",
-          padding: "60px",
-          position: "relative",
+          backgroundColor: INK,
+          color: FG,
+          fontFamily: "Anton",
+          border: `10px solid ${FG}`,
         }}
       >
-        {/* Subtle Background Glow/Gradient */}
+        {/* Main poster area */}
         <div
           style={{
-            position: "absolute",
-            top: "-200px",
-            right: "-200px",
-            width: "600px",
-            height: "600px",
-            background: "radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 70%)",
-            borderRadius: "50%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            flexGrow: 1,
+            padding: "40px 48px 28px",
+            position: "relative",
+            // Halftone dot field, same as the site background
+            backgroundImage: `radial-gradient(circle at 10px 10px, #262319 2px, transparent 2.5px)`,
+            backgroundSize: "26px 26px",
           }}
-        />
-
-        {/* Header */}
-        <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", fontSize: "40px", fontWeight: "bold", letterSpacing: "-0.02em" }}>
-            ViralProtest
+        >
+          {/* Top row: event chip + place/date */}
+          <div
+            style={{
+              display: "flex",
+              width: "100%",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                backgroundColor: ACID,
+                color: INK,
+                fontSize: "34px",
+                padding: "8px 20px",
+                textTransform: "uppercase",
+                letterSpacing: "0.02em",
+              }}
+            >
+              ✊ Sansad Chalo
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontFamily: "JetBrains Mono",
+                fontSize: "22px",
+                color: MUTED,
+                letterSpacing: "0.2em",
+              }}
+            >
+              20 JULY · NEW DELHI
+            </div>
           </div>
-          <div style={{ display: "flex", fontSize: "24px", color: "#a3a3a3", fontWeight: "500" }}>
-            OFFICIAL SUPPORTER
+
+          {/* Middle: photo + name */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "36px",
+            }}
+          >
+            {/* Profile photo — hard border, slight tilt, alarm offset shadow */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "190px",
+                height: "190px",
+                border: `6px solid ${FG}`,
+                backgroundColor: ACID,
+                transform: "rotate(-3deg)",
+                boxShadow: `10px 10px 0 ${ALARM}`,
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              {user.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.image}
+                  alt=""
+                  width={190}
+                  height={190}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: "110px",
+                    color: INK,
+                  }}
+                >
+                  {initial}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "JetBrains Mono",
+                  fontSize: "20px",
+                  color: ALARM,
+                  letterSpacing: "0.25em",
+                  textTransform: "uppercase",
+                }}
+              >
+                I march for clean exams
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: firstName.length > 18 ? "64px" : "84px",
+                  lineHeight: 1.05,
+                  textTransform: "uppercase",
+                  marginTop: "6px",
+                  maxWidth: "780px",
+                }}
+              >
+                {firstName}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  marginTop: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    fontFamily: "JetBrains Mono",
+                    fontWeight: 700,
+                    fontSize: "22px",
+                    color: INK,
+                    backgroundColor: FG,
+                    padding: "4px 14px",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  SUPPORTER #{formattedNumber}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    border: `3px solid ${ALARM}`,
+                    color: ALARM,
+                    fontFamily: "JetBrains Mono",
+                    fontWeight: 700,
+                    fontSize: "18px",
+                    padding: "4px 12px",
+                    letterSpacing: "0.15em",
+                    transform: "rotate(-2deg)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Verified ✔
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom row: giant number + QR */}
+          <div
+            style={{
+              display: "flex",
+              width: "100%",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "JetBrains Mono",
+                  fontSize: "18px",
+                  color: MUTED,
+                  letterSpacing: "0.25em",
+                }}
+              >
+                THEY CAN&apos;T IGNORE US ALL
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: "150px",
+                  lineHeight: 0.95,
+                  color: ACID,
+                }}
+              >
+                #{formattedNumber}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  width: "120px",
+                  height: "120px",
+                  border: `4px solid ${FG}`,
+                  overflow: "hidden",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrUrl}
+                  alt=""
+                  width={112}
+                  height={112}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "JetBrains Mono",
+                  fontSize: "14px",
+                  color: MUTED,
+                  letterSpacing: "0.2em",
+                }}
+              >
+                SCAN TO JOIN
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "160px", height: "160px", borderRadius: "50%", overflow: "hidden", border: "4px solid #262626" }}>
-             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src={user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} 
-              alt="Profile" 
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-            <div style={{ fontSize: "56px", fontWeight: "800", letterSpacing: "-0.02em" }}>
-              {user.name}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ display: "flex", fontSize: "32px", fontFamily: "monospace", color: "#a3a3a3", backgroundColor: "#171717", padding: "8px 24px", borderRadius: "8px", border: "1px solid #262626" }}>
-                {`#${formattedNumber}`}
-              </div>
-              <div style={{ display: "flex", fontSize: "24px", color: "#737373" }}>
-                {`Joined ${joinedDate}`}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-             <div style={{ fontSize: "32px", fontWeight: "bold", letterSpacing: "-0.01em" }}>
-              #SansadChalo
-            </div>
-            <div style={{ fontSize: "20px", color: "#737373" }}>
-              CJP Protest • July 20, 2026
-            </div>
-          </div>
-          
-          <div style={{ display: "flex", width: "120px", height: "120px", borderRadius: "12px", overflow: "hidden", border: "2px solid #262626" }}>
-             {/* eslint-disable-next-line @next/next/no-img-element */}
-             <img src={qrUrl} alt="QR Code" style={{ width: "100%", height: "100%" }} />
-          </div>
+        {/* Acid slogan strip along the bottom, like the site ticker */}
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: ACID,
+            color: INK,
+            padding: "10px 0",
+            fontSize: "26px",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            justifyContent: "center",
+            gap: "28px",
+            borderTop: `6px solid ${FG}`,
+          }}
+        >
+          <span>Our exams. Our future.</span>
+          <span>✊</span>
+          <span>Answer us</span>
+          <span>✊</span>
+          <span>#SansadChalo</span>
+          <span>✊</span>
+          <span>20 July</span>
         </div>
       </div>
     ),
     {
       width: 1200,
       height: 630,
+      fonts: [
+        { name: "Anton", data: anton, style: "normal", weight: 400 },
+        { name: "JetBrains Mono", data: mono, style: "normal", weight: 500 },
+        { name: "JetBrains Mono", data: monoBold, style: "normal", weight: 700 },
+      ],
     }
   );
 }
