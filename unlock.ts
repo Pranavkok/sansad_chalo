@@ -16,7 +16,7 @@ async function main() {
       try { 
         await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" SET (schema_locked = false);`); 
         console.log(`${table} unlocked.`);
-      } catch (e) {
+      } catch {
         console.log(`Skipped ${table} (may not exist yet).`);
       }
     }

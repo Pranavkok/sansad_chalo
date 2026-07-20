@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
  * Protest-style stats strip for the dashboard: your number, shares,
  * and join date rendered like tally marks on a placard.
  */
-export function ProfileCard({ user }: { user: any }) {
+export function ProfileCard({ user }: { user: { supporterNumber?: number | null; createdAt: Date; shareCount?: number | null } }) {
   const formattedNumber = String(user.supporterNumber).padStart(6, "0");
   const joinedDate = new Date(user.createdAt).toLocaleDateString("en-IN", {
     day: "numeric",

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
  * Share rail for the dashboard. WhatsApp first — that's where Indian
  * protest content actually travels — then X, native share, copy, download.
  */
-export function ShareButtons({ user }: { user: any }) {
+export function ShareButtons({ user }: { user: { id: string; supporterNumber?: number | null } }) {
   const router = useRouter();
 
   const formattedNumber = String(user.supporterNumber).padStart(6, "0");
