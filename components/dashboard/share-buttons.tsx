@@ -14,7 +14,7 @@ export function ShareButtons({ user }: { user: { id: string; supporterNumber?: n
   const formattedNumber = String(user.supporterNumber).padStart(6, "0");
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/user/${user.id}` : "";
-  const shareText = `I'm Supporter #${formattedNumber} of the Sansad Chalo march. Our exams were sold — on 20 July we demand answers at Parliament. Claim your own numbered card:`;
+  const shareText = `We are the youth of India, united and peaceful. 🇮🇳\nOur exams were compromised, but our future won't be.\n\nI am proud to be Supporter #${formattedNumber} for the peaceful #SansadChalo march on 20 July.\n\nStand with us, raise your voice, and claim your own card:`;
 
   const countShare = async () => {
     // Fire-and-forget: never block the share sheet on our own API.

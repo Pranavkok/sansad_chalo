@@ -3,6 +3,54 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  
+  const user = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!user || !user.supporterNumber) {
+    return {
+      title: "User Not Found",
+    }
+  }
+
+  const formattedNumber = String(user.supporterNumber).padStart(6, '0');
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  const imageUrl = `${baseUrl}/api/card/${id}`;
+  const title = `Supporter #${formattedNumber} | Sansad Chalo`;
+  const description = `The youth of India is united. Stand with us for the peaceful #SansadChalo march.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Supporter #${formattedNumber} Card`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
+}
 
 export default async function PublicProfilePage({
   params,
