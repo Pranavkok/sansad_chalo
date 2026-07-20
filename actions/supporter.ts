@@ -12,7 +12,8 @@ export async function becomeSupporter() {
   const userId = session.user.id;
 
   try {
-    const updatedUser = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updatedUser = await prisma.$transaction(async (tx: any) => {
       const currentUser = await tx.user.findUnique({
         where: { id: userId },
       });
